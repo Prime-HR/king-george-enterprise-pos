@@ -1,0 +1,50 @@
+{
+  "expo": {
+    "name": "King George Enterprise",
+    "slug": "king-george-enterprise",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/welcome-logo.png",
+    "scheme": "kinggeorge",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": false,
+    "splash": {
+      "image": "./assets/welcome-logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#021235"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.kinggeorge.enterprise"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/welcome-logo.png",
+        "backgroundColor": "#021235"
+      },
+      "package": "com.kinggeorge.enterprise",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/welcome-logo.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "The app needs access to photos to add product images."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
