@@ -42,3 +42,33 @@ export function updateShopPaymentInfo(momoNumber: string, momoName: string, shop
   setSetting('momo_name', momoName);
   setSetting('shop_phone', shopPhone);
 }
+
+export function getShopDetails() {
+  return {
+    shopName: getSetting('shop_name', 'KING GEORGE ENTERPRISE'),
+    shopTagline: getSetting('shop_tagline', 'General Merchant & Provisions Depot'),
+    shopLocation: getSetting('shop_location', 'Juaben Adumasa, Ashanti'),
+    shopPhone: getSetting('shop_phone', '0548809611'),
+    shopEmail: getSetting('shop_email', 'gyamfigeorge9990@gmail.com'),
+    momoNumber: getSetting('momo_number', '0548809611'),
+    momoName: getSetting('momo_name', 'GEORGE GYAMFI'),
+  };
+}
+
+export function updateShopDetails(details: {
+  shopName?: string;
+  shopTagline?: string;
+  shopLocation?: string;
+  shopPhone?: string;
+  shopEmail?: string;
+  momoNumber?: string;
+  momoName?: string;
+}): void {
+  if (details.shopName) setSetting('shop_name', details.shopName);
+  if (details.shopTagline) setSetting('shop_tagline', details.shopTagline);
+  if (details.shopLocation) setSetting('shop_location', details.shopLocation);
+  if (details.shopPhone) setSetting('shop_phone', details.shopPhone);
+  if (details.shopEmail) setSetting('shop_email', details.shopEmail);
+  if (details.momoNumber) setSetting('momo_number', details.momoNumber);
+  if (details.momoName) setSetting('momo_name', details.momoName);
+}

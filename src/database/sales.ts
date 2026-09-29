@@ -12,8 +12,8 @@ export function createSale(
     const result = db.runSync(
       `INSERT INTO sales (
         customer_name, phone_number, receipt_date, total_amount, amount_paid,
-        balance_due, payment_method, storage_status, storage_notes
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        balance_due, payment_method, momo_ref, storage_status, storage_notes
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         sale.customer_name,
         sale.phone_number,
@@ -22,6 +22,7 @@ export function createSale(
         sale.amount_paid,
         sale.balance_due,
         sale.payment_method || 'Cash',
+        sale.momo_ref || null,
         sale.storage_status || 'delivered',
         sale.storage_notes || null,
       ]
@@ -30,7 +31,6 @@ export function createSale(
     saleId = result.lastInsertRowId;
 
     for (const item of items) {
-      // Look up product cost_price if not explicitly set
       let costPrice = item.cost_price || 0;
       if (item.product_id && costPrice === 0) {
         const prod = getProductById(item.product_id);
@@ -76,141 +76,151 @@ export function getAllSales(): Sale[] {
   return db.getAllSync<Sale>('SELECT * FROM sales ORDER BY created_at DESC');
 }
 
-export function getRecentSales(limit: number): Sale[] {
+export function getRecentSales(limit: number = 20): Sale[] {
   return db.getAllSync<Sale>('SELECT * FROM sales ORDER BY created_at DESC LIMIT ?', [limit]);
 }
 
-export function getDailySummary(date: string): DailySummary {
-  const result = db.getFirstSync<{ total_sales: number; total_transactions: number }>(
-    'SELECT SUM(total_amount) as total_sales, COUNT(id) as total_transactions FROM sales WHERE receipt_date LIKE ?',
-    [`${date}%`]
-  ) || { total_sales: 0, total_transactions: 0 };
-
-  const itemsResult = db.getFirstSync<{ total_items_sold: number; total_cogs: number }>(
-    `SELECT SUM(sale_items.quantity) as total_items_sold,
-            SUM(sale_items.quantity * sale_items.cost_price) as total_cogs
-     FROM sale_items
-     INNER JOIN sales ON sale_items.sale_id = sales.id
-     WHERE sales.receipt_date LIKE ?`,
-    [`${date}%`]
-  ) || { total_items_sold: 0, total_cogs: 0 };
-
-  // Payment Breakdown
-  const cashRow = db.getFirstSync<{ total: number }>(
-    "SELECT SUM(amount_paid) as total FROM sales WHERE receipt_date LIKE ? AND payment_method = 'Cash'",
-    [`${date}%`]
-  );
-  const momoRow = db.getFirstSync<{ total: number }>(
-    "SELECT SUM(amount_paid) as total FROM sales WHERE receipt_date LIKE ? AND payment_method IN ('MTN MoMo', 'Telecel Cash')",
-    [`${date}%`]
-  );
-  const otherRow = db.getFirstSync<{ total: number }>(
-    "SELECT SUM(amount_paid) as total FROM sales WHERE receipt_date LIKE ? AND payment_method = 'Bank Transfer'",
-    [`${date}%`]
-  );
-  const creditRow = db.getFirstSync<{ total: number }>(
-    "SELECT SUM(balance_due) as total FROM sales WHERE receipt_date LIKE ? AND balance_due > 0",
-    [`${date}%`]
-  );
-
-  const totalSales = result.total_sales || 0;
-  const totalCogs = itemsResult.total_cogs || 0;
-  const grossProfit = totalSales - totalCogs;
-  const marginPercent = totalSales > 0 ? (grossProfit / totalSales) * 100 : 0;
-
-  return {
-    total_sales: totalSales,
-    total_transactions: result.total_transactions || 0,
-    total_items_sold: itemsResult.total_items_sold || 0,
-    total_cash: cashRow?.total || 0,
-    total_momo: momoRow?.total || 0,
-    total_other: otherRow?.total || 0,
-    total_credit_issued: creditRow?.total || 0,
-    total_cogs: totalCogs,
-    gross_profit: grossProfit,
-    margin_percent: marginPercent,
-  };
+export function getFrequentCustomers(): { customer_name: string; phone_number: string; count: number }[] {
+  try {
+    return db.getAllSync<{ customer_name: string; phone_number: string; count: number }>(
+      `SELECT customer_name, phone_number, COUNT(id) as count
+       FROM sales
+       WHERE customer_name IS NOT NULL
+         AND customer_name != ''
+         AND customer_name != 'Walk-in Customer'
+       GROUP BY customer_name, phone_number
+       ORDER BY count DESC, id DESC
+       LIMIT 10`
+    );
+  } catch (e) {
+    return [];
+  }
 }
 
 export function getPeriodSummary(filter: 'today' | 'week' | 'month' | 'all'): DailySummary {
-  let dateClause = '';
-  const params: any[] = [];
+  let salesDateClause = '';
+  let dateParam = '';
   const today = new Date();
 
   if (filter === 'today') {
-    const todayStr = today.toISOString().split('T')[0];
-    dateClause = 'WHERE receipt_date LIKE ?';
-    params.push(`${todayStr}%`);
+    dateParam = today.toISOString().split('T')[0];
+    salesDateClause = 'WHERE receipt_date LIKE ?';
   } else if (filter === 'week') {
     const weekAgo = new Date();
     weekAgo.setDate(today.getDate() - 7);
-    dateClause = 'WHERE receipt_date >= ?';
-    params.push(weekAgo.toISOString().split('T')[0]);
+    dateParam = weekAgo.toISOString().split('T')[0];
+    salesDateClause = 'WHERE receipt_date >= ?';
   } else if (filter === 'month') {
-    const monthStr = today.toISOString().slice(0, 7);
-    dateClause = 'WHERE receipt_date LIKE ?';
-    params.push(`${monthStr}%`);
+    dateParam = today.toISOString().slice(0, 7);
+    salesDateClause = 'WHERE receipt_date LIKE ?';
   }
 
+  const querySalesParams = dateParam ? [filter === 'week' ? dateParam : `${dateParam}%`] : [];
+
   const result = db.getFirstSync<{ total_sales: number; total_transactions: number }>(
-    `SELECT SUM(total_amount) as total_sales, COUNT(id) as total_transactions FROM sales ${dateClause}`,
-    params
+    `SELECT SUM(total_amount) as total_sales, COUNT(id) as total_transactions FROM sales ${salesDateClause}`,
+    querySalesParams
   ) || { total_sales: 0, total_transactions: 0 };
 
-  const itemsClause = dateClause ? dateClause.replace('receipt_date', 'sales.receipt_date') : '';
+  const itemsClause = salesDateClause ? salesDateClause.replace('receipt_date', 'sales.receipt_date') : '';
   const itemsResult = db.getFirstSync<{ total_items_sold: number; total_cogs: number }>(
     `SELECT SUM(sale_items.quantity) as total_items_sold,
             SUM(sale_items.quantity * sale_items.cost_price) as total_cogs
      FROM sale_items
      INNER JOIN sales ON sale_items.sale_id = sales.id
      ${itemsClause}`,
-    params
+    querySalesParams
   ) || { total_items_sold: 0, total_cogs: 0 };
 
-  const cashClause = dateClause ? `${dateClause} AND payment_method = 'Cash'` : "WHERE payment_method = 'Cash'";
-  const momoClause = dateClause ? `${dateClause} AND payment_method IN ('MTN MoMo', 'Telecel Cash')` : "WHERE payment_method IN ('MTN MoMo', 'Telecel Cash')";
-  const otherClause = dateClause ? `${dateClause} AND payment_method = 'Bank Transfer'` : "WHERE payment_method = 'Bank Transfer'";
-  const creditClause = dateClause ? `${dateClause} AND balance_due > 0` : "WHERE balance_due > 0";
+  const cashClause = salesDateClause ? `${salesDateClause} AND payment_method = 'Cash'` : "WHERE payment_method = 'Cash'";
+  const momoClause = salesDateClause ? `${salesDateClause} AND payment_method IN ('MTN MoMo', 'Telecel Cash')` : "WHERE payment_method IN ('MTN MoMo', 'Telecel Cash')";
+  const otherClause = salesDateClause ? `${salesDateClause} AND payment_method = 'Bank Transfer'` : "WHERE payment_method = 'Bank Transfer'";
+  const creditClause = salesDateClause ? `${salesDateClause} AND balance_due > 0` : "WHERE balance_due > 0";
 
   const cashRow = db.getFirstSync<{ total: number }>(
     `SELECT SUM(amount_paid) as total FROM sales ${cashClause}`,
-    params
+    querySalesParams
   );
   const momoRow = db.getFirstSync<{ total: number }>(
     `SELECT SUM(amount_paid) as total FROM sales ${momoClause}`,
-    params
+    querySalesParams
   );
   const otherRow = db.getFirstSync<{ total: number }>(
     `SELECT SUM(amount_paid) as total FROM sales ${otherClause}`,
-    params
+    querySalesParams
   );
   const creditRow = db.getFirstSync<{ total: number }>(
     `SELECT SUM(balance_due) as total FROM sales ${creditClause}`,
-    params
+    querySalesParams
+  );
+
+  // Cash collections from debt payments in this period
+  let debtDateClause = '';
+  if (filter === 'today') {
+    debtDateClause = "WHERE created_at LIKE ? AND payment_method = 'Cash'";
+  } else if (filter === 'week') {
+    debtDateClause = "WHERE created_at >= ? AND payment_method = 'Cash'";
+  } else if (filter === 'month') {
+    debtDateClause = "WHERE created_at LIKE ? AND payment_method = 'Cash'";
+  } else {
+    debtDateClause = "WHERE payment_method = 'Cash'";
+  }
+  const debtCashRow = db.getFirstSync<{ total: number }>(
+    `SELECT SUM(amount) as total FROM debt_payments ${debtDateClause}`,
+    querySalesParams
+  );
+
+  // Expenses in this period
+  let expDateClause = '';
+  if (filter === 'today') {
+    expDateClause = 'WHERE expense_date LIKE ?';
+  } else if (filter === 'week') {
+    expDateClause = 'WHERE expense_date >= ?';
+  } else if (filter === 'month') {
+    expDateClause = 'WHERE expense_date LIKE ?';
+  }
+  const expRow = db.getFirstSync<{ total: number; cash_total: number }>(
+    `SELECT SUM(amount) as total,
+            SUM(CASE WHEN payment_method = 'Cash' THEN amount ELSE 0 END) as cash_total
+     FROM expenses ${expDateClause}`,
+    querySalesParams
   );
 
   const totalSales = result.total_sales || 0;
   const totalCogs = itemsResult.total_cogs || 0;
   const grossProfit = totalSales - totalCogs;
   const marginPercent = totalSales > 0 ? (grossProfit / totalSales) * 100 : 0;
+  const totalCashSales = cashRow?.total || 0;
+  const cashDebtCollected = debtCashRow?.total || 0;
+  const totalExpenses = expRow?.total || 0;
+  const cashExpenses = expRow?.cash_total || 0;
+
+  // Drawer Net Cash = (Cash Sales + Cash Debt Collected) - Cash Expenses
+  const netCashDrawer = totalCashSales + cashDebtCollected - cashExpenses;
 
   return {
     total_sales: totalSales,
     total_transactions: result.total_transactions || 0,
     total_items_sold: itemsResult.total_items_sold || 0,
-    total_cash: cashRow?.total || 0,
+    total_cash: totalCashSales,
     total_momo: momoRow?.total || 0,
     total_other: otherRow?.total || 0,
     total_credit_issued: creditRow?.total || 0,
+    total_expenses: totalExpenses,
+    net_cash_drawer: netCashDrawer,
     total_cogs: totalCogs,
     gross_profit: grossProfit,
     margin_percent: marginPercent,
   };
 }
 
+export function getDailySummary(date: string): DailySummary {
+  return getPeriodSummary('today');
+}
+
 export function getPeriodTopSellingItems(
   filter: 'today' | 'week' | 'month' | 'all',
-  limit: number
+  limit: number = 5
 ): TopSellingItem[] {
   let dateClause = '';
   const params: any[] = [];
@@ -248,27 +258,15 @@ export function getPeriodTopSellingItems(
   );
 }
 
-export function getTopSellingItems(date: string, limit: number): TopSellingItem[] {
-  return db.getAllSync<TopSellingItem>(
-    `SELECT item_name,
-            SUM(quantity) as total_quantity,
-            SUM(total_price) as total_revenue,
-            SUM(total_price - (cost_price * quantity)) as total_profit
-     FROM sale_items
-     INNER JOIN sales ON sale_items.sale_id = sales.id
-     WHERE sales.receipt_date LIKE ?
-     GROUP BY item_name
-     ORDER BY total_quantity DESC
-     LIMIT ?`,
-    [`${date}%`, limit]
-  );
+export function getTopSellingItems(date: string, limit: number = 5): TopSellingItem[] {
+  return getPeriodTopSellingItems('today', limit);
 }
 
 export function exportSalesCSV(): string {
   const sales = getAllSales();
   const rows: string[] = [];
   rows.push(
-    'Receipt ID,Date,Customer Name,Phone,Payment Method,Total (GHC),Paid (GHC),Balance (GHC),Storage Status,Storage Notes,Items'
+    'Receipt ID,Date,Customer Name,Phone,Payment Method,MoMo Ref,Total (GHC),Paid (GHC),Balance (GHC),Storage Status,Storage Notes,Items'
   );
 
   for (const sale of sales) {
@@ -277,7 +275,7 @@ export function exportSalesCSV(): string {
       .map((i) => `${i.item_name} (${i.quantity} ${i.category} @ ${i.unit_price})`)
       .join(' | ');
     rows.push(
-      `"${sale.id}","${sale.receipt_date}","${sale.customer_name || ''}","${sale.phone_number || ''}","${sale.payment_method || 'Cash'}","${sale.total_amount}","${sale.amount_paid}","${sale.balance_due}","${sale.storage_status || ''}","${sale.storage_notes || ''}","${itemsDesc.replace(/"/g, '""')}"`
+      `"${sale.id}","${sale.receipt_date}","${sale.customer_name || ''}","${sale.phone_number || ''}","${sale.payment_method || 'Cash'}","${sale.momo_ref || ''}","${sale.total_amount}","${sale.amount_paid}","${sale.balance_due}","${sale.storage_status || ''}","${sale.storage_notes || ''}","${itemsDesc.replace(/"/g, '""')}"`
     );
   }
 
@@ -286,7 +284,6 @@ export function exportSalesCSV(): string {
 
 export function deleteSale(id: number): void {
   db.withTransactionSync(() => {
-    // Restore stock to inventory
     const items = db.getAllSync<SaleItem>('SELECT * FROM sale_items WHERE sale_id = ?', [id]);
     for (const item of items) {
       if (item.product_id) {
@@ -301,7 +298,7 @@ export function deleteSale(id: number): void {
 
 export function updateSale(
   id: number,
-  sale: Partial<Pick<Sale, 'customer_name' | 'phone_number' | 'amount_paid' | 'balance_due' | 'payment_method' | 'storage_status' | 'storage_notes'>>
+  sale: Partial<Pick<Sale, 'customer_name' | 'phone_number' | 'amount_paid' | 'balance_due' | 'payment_method' | 'momo_ref' | 'storage_status' | 'storage_notes'>>
 ): void {
   const updates: string[] = [];
   const params: any[] = [];
@@ -325,6 +322,10 @@ export function updateSale(
   if (sale.payment_method !== undefined) {
     updates.push('payment_method = ?');
     params.push(sale.payment_method);
+  }
+  if (sale.momo_ref !== undefined) {
+    updates.push('momo_ref = ?');
+    params.push(sale.momo_ref);
   }
   if (sale.storage_status !== undefined) {
     updates.push('storage_status = ?');

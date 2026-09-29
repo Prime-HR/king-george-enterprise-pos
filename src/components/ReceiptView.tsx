@@ -117,6 +117,12 @@ export default function ReceiptView({ sale, items }: ReceiptViewProps) {
           <Text className="text-gray-500 text-xs">Payment Method</Text>
           <Text className="text-gray-800 text-xs font-bold">{sale.payment_method || 'Cash'}</Text>
         </View>
+        {sale.momo_ref ? (
+          <View className="flex-row justify-between mb-0.5">
+            <Text className="text-amber-700 text-xs font-semibold">MoMo Ref ID</Text>
+            <Text className="text-amber-900 text-xs font-bold">{sale.momo_ref}</Text>
+          </View>
+        ) : null}
         <View className="flex-row justify-between mb-0.5">
           <Text className="text-gray-500 text-xs">Amount Paid</Text>
           <Text className="text-green-600 text-xs font-semibold">{formatCurrency(sale.amount_paid)}</Text>

@@ -79,6 +79,12 @@ export function generateReceiptHTML(sale: Sale, items: SaleItem[]): string {
             <span>Payment Method:</span>
             <span><strong>${sale.payment_method || 'Cash'}</strong></span>
           </div>
+          ${sale.momo_ref ? `
+          <div class="total-row" style="color:#b45309;font-weight:600;">
+            <span>MoMo Ref / TXN:</span>
+            <span>${sale.momo_ref}</span>
+          </div>
+          ` : ''}
           <div class="total-row">
             <span>Amount Paid:</span>
             <span>${formatCurrency(sale.amount_paid)}</span>

@@ -27,6 +27,7 @@ export function initializeDatabase(): void {
       amount_paid REAL NOT NULL DEFAULT 0,
       balance_due REAL NOT NULL DEFAULT 0,
       payment_method TEXT NOT NULL DEFAULT 'Cash',
+      momo_ref TEXT,
       storage_status TEXT NOT NULL DEFAULT 'delivered',
       storage_notes TEXT,
       created_at TEXT DEFAULT (datetime('now','localtime'))
@@ -57,6 +58,17 @@ export function initializeDatabase(): void {
       FOREIGN KEY (sale_id) REFERENCES sales(id)
     );
 
+    CREATE TABLE IF NOT EXISTS expenses (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      amount REAL NOT NULL,
+      category TEXT NOT NULL DEFAULT 'Other',
+      payment_method TEXT NOT NULL DEFAULT 'Cash',
+      notes TEXT,
+      expense_date TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now','localtime'))
+    );
+
     CREATE TABLE IF NOT EXISTS settings (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL
@@ -67,6 +79,7 @@ export function initializeDatabase(): void {
   try { db.runSync("ALTER TABLE sales ADD COLUMN storage_status TEXT NOT NULL DEFAULT 'delivered'"); } catch (e) {}
   try { db.runSync("ALTER TABLE sales ADD COLUMN storage_notes TEXT"); } catch (e) {}
   try { db.runSync("ALTER TABLE sales ADD COLUMN payment_method TEXT NOT NULL DEFAULT 'Cash'"); } catch (e) {}
+  try { db.runSync("ALTER TABLE sales ADD COLUMN momo_ref TEXT"); } catch (e) {}
   try { db.runSync("ALTER TABLE products ADD COLUMN cost_price REAL NOT NULL DEFAULT 0"); } catch (e) {}
   try { db.runSync("ALTER TABLE products ADD COLUMN sku TEXT"); } catch (e) {}
   try { db.runSync("ALTER TABLE sale_items ADD COLUMN cost_price REAL NOT NULL DEFAULT 0"); } catch (e) {}

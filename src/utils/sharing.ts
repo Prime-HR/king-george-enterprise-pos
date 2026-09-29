@@ -28,6 +28,9 @@ export function generateReceiptText(sale: Sale, items: SaleItem[]): string {
   text += thinDivider + '\n';
   text += `💰 *TOTAL: ${formatCurrency(sale.total_amount)}*\n`;
   text += `💳 *Method:* ${sale.payment_method || 'Cash'}\n`;
+  if (sale.momo_ref) {
+    text += `🔖 *MoMo Ref ID:* ${sale.momo_ref}\n`;
+  }
   text += `✅ *Paid:* ${formatCurrency(sale.amount_paid)}\n`;
   
   if (sale.balance_due > 0) {
@@ -88,6 +91,9 @@ export async function sendViaSMS(phoneNumber: string, sale: Sale, items: SaleIte
   text += '---\n';
   text += `TOTAL: ${formatCurrency(sale.total_amount)}\n`;
   text += `Method: ${sale.payment_method || 'Cash'}\n`;
+  if (sale.momo_ref) {
+    text += `MoMo Ref: ${sale.momo_ref}\n`;
+  }
   text += `Paid: ${formatCurrency(sale.amount_paid)}\n`;
   if (sale.balance_due > 0) {
     text += `Balance: ${formatCurrency(sale.balance_due)}\n`;

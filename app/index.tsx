@@ -17,7 +17,7 @@ import Header from '../src/components/Header';
 import SaleItemRow from '../src/components/SaleItemRow';
 import StockAlertBanner from '../src/components/StockAlertBanner';
 import MaterialLookupModal from '../src/components/MaterialLookupModal';
-import { createSale } from '../src/database/sales';
+import { createSale, getFrequentCustomers } from '../src/database/sales';
 import { getAllProducts, getLowStockProducts } from '../src/database/inventory';
 import { Product, CATEGORIES, PaymentMethod, PAYMENT_METHODS } from '../src/database/types';
 import { formatCurrency, getTodayString } from '../src/utils/formatting';
@@ -40,10 +40,12 @@ export default function NewSaleScreen() {
   const [lowStockProducts, setLowStockProducts] = useState<Product[]>([]);
   const [lookupVisible, setLookupVisible] = useState(false);
 
-  // Customer info
+  // Customer info & frequent customer picker
   const [customerName, setCustomerName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [receiptDate, setReceiptDate] = useState(getTodayString());
+  const [frequentCustomers, setFrequentCustomers] = useState<{ customer_name: string; phone_number: string; count: number }[]>([]);
+  const [showCustomerSuggestions, setShowCustomerSuggestions] = useState(false);
 
   // Current item form
   const [itemName, setItemName] = useState('');
@@ -60,6 +62,7 @@ export default function NewSaleScreen() {
   // Payment
   const [amountPaid, setAmountPaid] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Cash');
+  const [momoRef, setMomoRef] = useState('');
 
   // Storage toggle
   const [storeAtShop, setStoreAtShop] = useState(false);
@@ -79,6 +82,7 @@ export default function NewSaleScreen() {
       setAllProducts(products);
       const lowStock = getLowStockProducts();
       setLowStockProducts(lowStock);
+      setFrequentCustomers(getFrequentCustomers());
     }, [])
   );
 
@@ -94,6 +98,20 @@ export default function NewSaleScreen() {
       )
       .slice(0, 5);
   }, [itemName, showSuggestions, allProducts]);
+
+  // Frequent customer suggestions
+  const customerSuggestions = useMemo(() => {
+    if (!showCustomerSuggestions) return [];
+    if (!customerName.trim()) return frequentCustomers.slice(0, 4);
+    const q = customerName.toLowerCase().trim();
+    return frequentCustomers
+      .filter(
+        (c) =>
+          c.customer_name.toLowerCase().includes(q) ||
+          (c.phone_number && c.phone_number.includes(q))
+      )
+      .slice(0, 4);
+  }, [customerName, showCustomerSuggestions, frequentCustomers]);
 
   const grandTotal = saleItems.reduce((sum, item) => sum + item.total_price, 0);
   const parsedPaid = parseFloat(amountPaid) || 0;
@@ -218,6 +236,7 @@ export default function NewSaleScreen() {
             setSelectedProductId(null);
             setSelectedProductStock(null);
             setAmountPaid('');
+            setMomoRef('');
           },
         },
       ]
@@ -226,7 +245,7 @@ export default function NewSaleScreen() {
 
   const handleGenerateReceipt = () => {
     if (saleItems.length === 0) {
-      Alert.alert('No Items', 'Please add at least one material to the sale.');
+      Alert.alert('No Items', 'Please add at least one product to the sale.');
       return;
     }
 
@@ -241,6 +260,7 @@ export default function NewSaleScreen() {
           amount_paid: paid,
           balance_due: Math.max(0, grandTotal - paid),
           payment_method: paymentMethod,
+          momo_ref: momoRef.trim() || null,
           storage_status: storeAtShop ? 'stored' : 'delivered',
           storage_notes: storeAtShop ? storageNotes.trim() || null : null,
         },
@@ -262,6 +282,7 @@ export default function NewSaleScreen() {
       setSaleItems([]);
       setAmountPaid('');
       setPaymentMethod('Cash');
+      setMomoRef('');
       setStoreAtShop(false);
       setStorageNotes('');
       setSelectedProductId(null);
@@ -306,10 +327,10 @@ export default function NewSaleScreen() {
               </View>
               <View>
                 <Text className="text-white font-extrabold text-sm">
-                  Quick Material & Price Checker
+                  Quick Product & Price Checker
                 </Text>
                 <Text className="text-amber-100 text-[11px]">
-                  Look up prices & stock for customers instantly
+                  Look up prices & stock for provisions instantly
                 </Text>
               </View>
             </View>
@@ -319,16 +340,69 @@ export default function NewSaleScreen() {
 
         {/* Customer Info Card */}
         <View className="bg-white mx-4 mt-3 rounded-2xl p-4 shadow-sm border border-gray-100">
-          <Text className="text-gray-900 text-sm font-bold mb-2.5 flex-row items-center">
-            <Ionicons name="person" size={15} color="#1e40af" /> Customer Details
-          </Text>
-          <TextInput
-            value={customerName}
-            onChangeText={setCustomerName}
-            placeholder="Customer Name (e.g. Kofi Mensah)"
-            placeholderTextColor="#9ca3af"
-            className="bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-gray-900 text-sm mb-2"
-          />
+          <View className="flex-row justify-between items-center mb-2.5">
+            <Text className="text-gray-900 text-sm font-bold flex-row items-center">
+              <Ionicons name="person" size={15} color="#021235" /> Customer Details
+            </Text>
+            {customerName.trim() ? (
+              <TouchableOpacity
+                onPress={() => {
+                  setCustomerName('');
+                  setPhoneNumber('');
+                }}
+              >
+                <Text className="text-gray-400 text-xs font-semibold">Clear</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+
+          <View className="relative">
+            <TextInput
+              value={customerName}
+              onChangeText={(text) => {
+                setCustomerName(text);
+                setShowCustomerSuggestions(true);
+              }}
+              onFocus={() => setShowCustomerSuggestions(true)}
+              placeholder="Customer Name (e.g. Kofi Mensah)"
+              placeholderTextColor="#9ca3af"
+              className="bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-gray-900 text-sm mb-2"
+            />
+
+            {/* Quick Customer Picker Dropdown */}
+            {customerSuggestions.length > 0 && showCustomerSuggestions && (
+              <View className="mb-2 bg-white border border-blue-200 rounded-xl shadow-md overflow-hidden z-20">
+                <View className="bg-blue-50 px-3 py-1.5 border-b border-blue-100 flex-row justify-between items-center">
+                  <Text className="text-blue-900 font-bold text-[11px]">
+                    RECENT / FREQUENT CUSTOMERS:
+                  </Text>
+                  <TouchableOpacity onPress={() => setShowCustomerSuggestions(false)}>
+                    <Ionicons name="close" size={14} color="#021235" />
+                  </TouchableOpacity>
+                </View>
+                {customerSuggestions.map((c, i) => (
+                  <TouchableOpacity
+                    key={`${c.customer_name}-${i}`}
+                    onPress={() => {
+                      setCustomerName(c.customer_name);
+                      setPhoneNumber(c.phone_number || '');
+                      setShowCustomerSuggestions(false);
+                    }}
+                    className="px-3 py-2 border-b border-gray-100 flex-row items-center justify-between active:bg-blue-50"
+                  >
+                    <View>
+                      <Text className="text-gray-900 text-xs font-bold">{c.customer_name}</Text>
+                      {c.phone_number ? (
+                        <Text className="text-gray-500 text-[10px]">📞 {c.phone_number}</Text>
+                      ) : null}
+                    </View>
+                    <Ionicons name="arrow-back" size={14} color="#021235" style={{ transform: [{ rotate: '180deg' }] }} />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
+
           <View className="flex-row">
             <TextInput
               value={phoneNumber}
@@ -352,7 +426,7 @@ export default function NewSaleScreen() {
         <View className="bg-white mx-4 mt-3 rounded-2xl p-4 shadow-sm border border-gray-100">
           <View className="flex-row justify-between items-center mb-2.5">
             <Text className="text-gray-900 text-sm font-bold flex-row items-center">
-              <Ionicons name="add-circle" size={16} color="#1e40af" /> Add Material
+              <Ionicons name="add-circle" size={16} color="#021235" /> Add Product / Provision
             </Text>
             {selectedProductStock !== null && (
               <View className="bg-emerald-50 px-2.5 py-0.5 rounded-full flex-row items-center">
@@ -377,7 +451,7 @@ export default function NewSaleScreen() {
                 }
               }}
               onFocus={() => setShowSuggestions(true)}
-              placeholder="Type material name (e.g. Cement, Rods, Sand)..."
+              placeholder="Type product name (e.g. Rice, Sugar, Milo, Oil, Soap)..."
               placeholderTextColor="#9ca3af"
               className="bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-gray-900 text-sm"
             />
@@ -593,6 +667,24 @@ export default function NewSaleScreen() {
                 <Text className="text-amber-800 text-xs font-semibold ml-2 flex-1">
                   Credit Sale: {customerName || 'Customer'} will be added to Debtors Ledger with balance {formatCurrency(grandTotal)}.
                 </Text>
+              </View>
+            )}
+
+            {(paymentMethod === 'MTN MoMo' || paymentMethod === 'Telecel Cash') && (
+              <View className="mb-2.5 bg-amber-50/80 border border-amber-200 rounded-xl p-2.5">
+                <View className="flex-row items-center mb-1">
+                  <Ionicons name="document-text-outline" size={14} color="#b45309" />
+                  <Text className="text-amber-900 text-xs font-bold ml-1">
+                    MoMo Transaction ID / Sender Phone (Optional):
+                  </Text>
+                </View>
+                <TextInput
+                  value={momoRef}
+                  onChangeText={setMomoRef}
+                  placeholder="e.g. TXN-928374 or 0244123456"
+                  placeholderTextColor="#9ca3af"
+                  className="bg-white border border-amber-200 rounded-lg px-3 py-1.5 text-gray-900 text-xs font-medium"
+                />
               </View>
             )}
 

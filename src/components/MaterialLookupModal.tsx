@@ -147,24 +147,24 @@ export default function MaterialLookupModal({
       <View className="flex-1 bg-black/60 justify-end">
         <View className="bg-gray-50 rounded-t-3xl h-[92%] flex-col overflow-hidden">
           {/* Header */}
-          <View className="bg-blue-900 px-5 pt-4 pb-4">
+          <View className="bg-[#021235] px-5 pt-4 pb-4">
             <View className="flex-row items-center justify-between">
               <View className="flex-row items-center">
                 <View className="w-8 h-8 rounded-lg bg-amber-400 items-center justify-center mr-2.5">
-                  <Ionicons name="pricetag" size={18} color="#1e3a8a" />
+                  <Ionicons name="pricetag" size={18} color="#021235" />
                 </View>
                 <View>
                   <Text className="text-white text-lg font-extrabold">
-                    Material & Price Checker
+                    Product & Price Checker
                   </Text>
-                  <Text className="text-blue-200 text-xs">
-                    Quickly check prices and stock for customers
+                  <Text className="text-amber-200 text-xs">
+                    Quickly check prices and stock for provisions
                   </Text>
                 </View>
               </View>
               <TouchableOpacity
                 onPress={onClose}
-                className="w-8 h-8 rounded-full bg-blue-800 items-center justify-center"
+                className="w-8 h-8 rounded-full bg-white/20 items-center justify-center"
               >
                 <Ionicons name="close" size={20} color="white" />
               </TouchableOpacity>
@@ -176,7 +176,7 @@ export default function MaterialLookupModal({
               <TextInput
                 value={search}
                 onChangeText={setSearch}
-                placeholder="Search cement, iron rods, sand, blocks..."
+                placeholder="Search rice, cooking oil, sugar, milo, soap..."
                 placeholderTextColor="#9ca3af"
                 className="flex-1 ml-2 text-gray-900 text-sm font-medium"
                 autoFocus
@@ -200,7 +200,7 @@ export default function MaterialLookupModal({
                 <TouchableOpacity
                   onPress={() => setSelectedCategory(cat)}
                   className={`px-3 py-1.5 rounded-full mr-2 ${
-                    selectedCategory === cat ? 'bg-blue-900' : 'bg-gray-100'
+                    selectedCategory === cat ? 'bg-[#021235]' : 'bg-gray-100'
                   }`}
                 >
                   <Text
@@ -219,12 +219,12 @@ export default function MaterialLookupModal({
           <View className="flex-1 px-4 pt-3">
             <View className="flex-row justify-between items-center mb-2 px-1">
               <Text className="text-gray-500 text-xs font-semibold">
-                Found {filteredProducts.length} material
+                Found {filteredProducts.length} product
                 {filteredProducts.length === 1 ? '' : 's'}
               </Text>
               {search.length > 0 && (
                 <TouchableOpacity onPress={() => setSearch('')}>
-                  <Text className="text-blue-900 text-xs font-bold">
+                  <Text className="text-[#021235] text-xs font-bold">
                     Clear filter
                   </Text>
                 </TouchableOpacity>

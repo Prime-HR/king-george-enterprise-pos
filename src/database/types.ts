@@ -23,6 +23,7 @@ export interface Sale {
   amount_paid: number;
   balance_due: number;
   payment_method?: PaymentMethod;
+  momo_ref?: string | null;
   storage_status: 'delivered' | 'stored' | 'picked_up';
   storage_notes?: string | null;
   created_at?: string;
@@ -57,6 +58,34 @@ export interface DebtorSummary {
   days_overdue: number;
 }
 
+export type ExpenseCategory =
+  | 'Shop Utility/ECG'
+  | 'Transport/Delivery'
+  | 'Meals/Refreshment'
+  | 'Casual Labor'
+  | 'Stock Restock'
+  | 'Other';
+
+export const EXPENSE_CATEGORIES: ExpenseCategory[] = [
+  'Shop Utility/ECG',
+  'Transport/Delivery',
+  'Meals/Refreshment',
+  'Casual Labor',
+  'Stock Restock',
+  'Other',
+];
+
+export interface Expense {
+  id?: number;
+  title: string;
+  amount: number;
+  category: ExpenseCategory;
+  payment_method: PaymentMethod;
+  notes?: string | null;
+  expense_date: string;
+  created_at?: string;
+}
+
 export interface DailySummary {
   total_sales: number;
   total_transactions: number;
@@ -65,6 +94,8 @@ export interface DailySummary {
   total_momo?: number;
   total_other?: number;
   total_credit_issued?: number;
+  total_expenses?: number;
+  net_cash_drawer?: number;
   total_cogs?: number;
   gross_profit?: number;
   margin_percent?: number;
