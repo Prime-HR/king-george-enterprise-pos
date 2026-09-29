@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>King George Enterprise - POS & Inventory</title>
+  
+  <!-- PWA Meta Tags -->
+  <meta name="theme-color" content="#021235">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="King George POS">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast"></div>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-top">
+      <div class="header-brand">
+        <div class="header-logo">👑</div>
+        <div>
+          <div class="header-title">
+            KING GEORGE <span class="badge-tag">POS</span>
+          </div>
+          <div class="header-subtitle">General Merchant & Provisions</div>
+        </div>
+      </div>
+      <div class="header-meta">
+        <div class="location">📍 Juaben Adumasa</div>
+        <div class="phone">📞 0548809611</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- PWA Install Banner -->
+  <div id="install-banner" class="install-banner" style="display:none;">
+    <div class="install-left">
+      <div style="font-size:24px;">📲</div>
+      <div>
+        <div class="install-text">Install King George POS</div>
+        <div class="install-sub">1-Tap Offline Access on Home Screen</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <button class="btn-install" onclick="installApp()">INSTALL</button>
+      <button onclick="dismissInstall()" style="background:none;border:none;color:#9ca3af;font-size:16px;cursor:pointer;padding:4px 8px;">✕</button>
+    </div>
+  </div>
+
+  <!-- MAIN TAB VIEWS -->
+
+  <!-- 1. NEW SALE / POS VIEW -->
+  <div id="view-pos" class="tab-view active">
+    <!-- Customer Info Card -->
+    <div class="card">
+      <div class="card-title">
+        <span>👤 Customer Information</span>
+        <input type="date" id="sale-date" class="form-input" style="width:130px;padding:4px 8px;font-size:12px;">
+      </div>
+      <div class="form-group" style="position:relative;">
+        <label class="form-label">Customer Name</label>
+        <input type="text" id="customer-name" class="form-input" placeholder="e.g. Yaw Mensah or Walk-in" autocomplete="off">
+        <div id="customer-suggestions" class="suggestion-box" style="display:none;"></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Phone / WhatsApp Number</label>
+        <input type="tel" id="customer-phone" class="form-input" placeholder="e.g. 0548809611">
+      </div>
+    </div>
+
+    <!-- Add Item to Sale Card -->
+    <div class="card">
+      <div class="card-title">
+        <span>🛒 Add Product to Sale</span>
+      </div>
+      <div class="form-group" style="position:relative;">
+        <label class="form-label">Search / Product Name</label>
+        <input type="text" id="item-name" class="form-input" placeholder="Type Rice, Oil, Sugar, Milk, Milo..." oninput="searchProductsLive(this.value)" autocomplete="off">
+        <input type="hidden" id="item-product-id">
+        <div id="product-suggestions" class="suggestion-box" style="display:none;"></div>
+      </div>
+
+      <div class="row">
+        <div class="form-group flex-1">
+          <label class="form-label">Unit Price (GH₵)</label>
+          <input type="number" id="item-price" class="form-input" placeholder="0.00" step="0.01" oninput="calculateItemSubtotal()">
+        </div>
+        <div class="form-group flex-1">
+          <label class="form-label">Quantity</label>
+          <input type="number" id="item-qty" class="form-input" placeholder="1" step="any" oninput="calculateItemSubtotal()">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Packaging / Unit</label>
+        <select id="item-category" class="form-input">
+          <option value="Bags">Bags</option>
+          <option value="Gallons">Gallons</option>
+          <option value="Cartons">Cartons</option>
+          <option value="Crates">Crates</option>
+          <option value="Packs">Packs</option>
+          <option value="Pieces" selected>Pieces</option>
+          <option value="Boxes">Boxes</option>
+          <option value="Tins">Tins</option>
+        </select>
+      </div>
+
+      <div id="item-subtotal-text" style="display:none;background:#eff6ff;color:#1e3a8a;padding:8px 12px;border-radius:10px;font-size:13px;font-weight:700;margin-bottom:10px;text-align:right;"></div>
+
+      <button type="button" onclick="addItemToCart()" class="btn-primary btn-gold">
+        ➕ Add to Sale Cart
+      </button>
+    </div>
+
+    <!-- Active Cart Card -->
+    <div id="cart-card" class="card" style="display:none;">
+      <div class="card-title">
+        <span>📋 Items in Cart</span>
+        <button onclick="clearCart()" style="background:none;border:none;color:#ef4444;font-size:11px;font-weight:700;cursor:pointer;">Clear All</button>
+      </div>
+      <div id="cart-items-list"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:12px;border-top:2px dashed #e5e7eb;">
+        <span style="font-size:16px;font-weight:900;color:#021235;">GRAND TOTAL:</span>
+        <span id="cart-grand-total" style="font-size:20px;font-weight:900;color:#021235;">GH₵ 0.00</span>
+      </div>
+    </div>
+
+    <!-- Payment & Storage Card -->
+    <div id="payment-card" class="card" style="display:none;">
+      <div class="card-title">
+        <span>💵 Payment & Collection</span>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Payment Method</label>
+        <select id="payment-method" class="form-input" onchange="handlePaymentMethodChange()">
+          <option value="Cash" selected>Cash (Physical in Drawer)</option>
+          <option value="MTN MoMo">MTN Mobile Money</option>
+          <option value="Telecel Cash">Telecel Cash</option>
+          <option value="Credit">Credit / Debtor (Pay Later)</option>
+        </select>
+      </div>
+
+      <div id="momo-ref-box" class="form-group" style="display:none;background:#fef3c7;padding:10px;border-radius:12px;border:1px solid #fde68a;">
+        <label class="form-label" style="color:#92400e;">MoMo Transaction ID / Reference</label>
+        <input type="text" id="momo-ref" class="form-input" placeholder="e.g. 28947291039">
+        <div style="font-size:10px;color:#b45309;margin-top:4px;">Merchant: 0548809611 (GEORGE GYAMFI)</div>
+      </div>
+
+      <div class="form-group">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <label class="form-label" style="margin:0;">Amount Paid by Customer (GH₵)</label>
+          <div style="display:flex;gap:6px;">
+            <button type="button" onclick="setPaidFull()" class="btn-sm" style="background:#ecfdf5;color:#059669;">Paid Full</button>
+            <button type="button" onclick="setCreditFull()" class="btn-sm" style="background:#fef2f2;color:#dc2626;">All Credit</button>
+          </div>
+        </div>
+        <input type="number" id="amount-paid" class="form-input" placeholder="0.00" step="0.01" oninput="calculateBalance()">
+      </div>
+
+      <div id="balance-due-box" style="display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:10px;margin-bottom:12px;">
+        <div id="balance-due-text" style="color:#dc2626;font-weight:800;font-size:13px;"></div>
+        <div style="font-size:10px;color:#991b1b;margin-top:2px;">This customer will be automatically tracked under Debtors ledger.</div>
+      </div>
+
+      <!-- Stored at Shop Toggle -->
+      <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:14px;padding:12px;margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <strong style="font-size:13px;color:#92400e;">📦 Store Items at Shop?</strong>
+            <div style="font-size:11px;color:#b45309;">Customer has paid but will pick up items later</div>
+          </div>
+          <input type="checkbox" id="store-at-shop" style="width:20px;height:20px;cursor:pointer;" onchange="document.getElementById('storage-notes-box').style.display = this.checked ? 'block' : 'none'">
+        </div>
+        <div id="storage-notes-box" style="display:none;margin-top:10px;">
+          <input type="text" id="storage-notes" class="form-input" placeholder="Notes (e.g. 'Will collect 2 bags Saturday')">
+        </div>
+      </div>
+
+      <button type="button" onclick="generateSaleReceipt()" class="btn-primary" style="padding:15px;font-size:16px;">
+        🧾 Complete Sale & Issue Receipt
+      </button>
+    </div>
+  </div>
+
+  <!-- 2. INVENTORY VIEW -->
+  <div id="view-inventory" class="tab-view">
+    <div class="card">
+      <div class="card-title">
+        <span>📦 Stock & Price Catalog</span>
+        <button onclick="openAddProductModal()" class="btn-sm btn-gold">➕ Add Product</button>
+      </div>
+      <div class="form-group">
+        <input type="text" id="inventory-search" class="form-input" placeholder="Search provisions by name..." oninput="renderProductsList()">
+      </div>
+    </div>
+    <div id="inventory-list"></div>
+  </div>
+
+  <!-- 3. DEBTORS VIEW -->
+  <div id="view-debtors" class="tab-view">
+    <div class="card" style="background:linear-gradient(135deg, #7f1d1d, #991b1b);color:white;border:none;">
+      <div style="font-size:12px;color:#fecaca;text-transform:uppercase;font-weight:700;">Total Outstanding Debt</div>
+      <div id="total-debt-amount" style="font-size:26px;font-weight:900;margin:6px 0;">GH₵ 0.00</div>
+      <div style="font-size:11px;color:#fee2e2;">Money owed to King George Enterprise by customers</div>
+    </div>
+    <div id="debtors-list"></div>
+  </div>
+
+  <!-- 4. STORED ITEMS VIEW -->
+  <div id="view-storage" class="tab-view">
+    <div class="card" style="background:linear-gradient(135deg, #78350f, #92400e);color:white;border:none;">
+      <div style="font-size:12px;color:#fde68a;text-transform:uppercase;font-weight:700;">Pending Pickup Tracking</div>
+      <div style="font-size:22px;font-weight:900;margin:6px 0;">📦 Warehouse Storage</div>
+      <div style="font-size:11px;color:#fef3c7;">Avoid releasing goods twice or forgetting customer deposits</div>
+    </div>
+    <div id="stored-items-list"></div>
+  </div>
+
+  <!-- 5. OWNER DASHBOARD VIEW -->
+  <div id="view-dashboard" class="tab-view">
+    <!-- Period Selector -->
+    <div class="card" style="padding:8px;">
+      <div style="display:flex;gap:6px;">
+        <button id="period-today" class="period-btn btn-sm active flex-1" onclick="setDashboardPeriod('today')" style="background:#f3f4f6;border-radius:10px;padding:8px;font-weight:700;">Today</button>
+        <button id="period-week" class="period-btn btn-sm flex-1" onclick="setDashboardPeriod('week')" style="background:#f3f4f6;border-radius:10px;padding:8px;font-weight:700;">Last 7 Days</button>
+        <button id="period-month" class="period-btn btn-sm flex-1" onclick="setDashboardPeriod('month')" style="background:#f3f4f6;border-radius:10px;padding:8px;font-weight:700;">This Month</button>
+      </div>
+    </div>
+
+    <!-- Revenue & Orders -->
+    <div class="row">
+      <div class="card flex-1" style="background:#021235;color:white;border:none;">
+        <div style="font-size:11px;color:#93c5fd;font-weight:700;">TOTAL SALES</div>
+        <div id="dash-revenue" style="font-size:20px;font-weight:900;color:#fbbf24;margin-top:4px;">GH₵ 0.00</div>
+      </div>
+      <div class="card flex-1" style="background:#021235;color:white;border:none;">
+        <div style="font-size:11px;color:#93c5fd;font-weight:700;">TRANSACTIONS</div>
+        <div id="dash-orders" style="font-size:20px;font-weight:900;color:white;margin-top:4px;">0</div>
+      </div>
+    </div>
+
+    <!-- Cash Drawer Reconciliation -->
+    <div class="card" style="border:2px solid #059669;background:#f0fdf4;">
+      <div class="card-title" style="color:#065f46;margin-bottom:8px;">
+        <span>💵 Cash Drawer Reconciliation</span>
+      </div>
+      <div style="font-size:11px;color:#047857;margin-bottom:10px;">
+        Exact physical cash that must be inside the drawer right now:
+      </div>
+      <div style="background:white;padding:12px;border-radius:12px;border:1px solid #bbf7d0;margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
+          <span>• Cash Sales In:</span>
+          <strong id="dash-cash-sales" style="color:#059669;">GH₵ 0.00</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
+          <span>• Petty Cash / Expenses Out:</span>
+          <strong id="dash-cash-expenses" style="color:#dc2626;">- GH₵ 0.00</strong>
+        </div>
+        <div style="border-top:1px dashed #bbf7d0;margin-top:6px;padding-top:6px;display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-weight:800;color:#065f46;font-size:13px;">NET PHYSICAL CASH:</span>
+          <span id="dash-drawer-cash" style="font-size:18px;font-weight:900;color:#065f46;">GH₵ 0.00</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Breakdown of MoMo, Credit & Expenses -->
+    <div class="card">
+      <div class="card-title">
+        <span>📊 Payment Channels & Expenses</span>
+        <button onclick="openAddExpenseModal()" class="btn-sm" style="background:#fee2e2;color:#dc2626;">➕ Add Expense</button>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f3f4f6;font-size:12px;">
+        <span>📱 Mobile Money (MTN / Telecel):</span>
+        <strong id="dash-momo" style="color:#0284c7;">GH₵ 0.00</strong>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f3f4f6;font-size:12px;">
+        <span>⚠️ Credit / Customer Debts:</span>
+        <strong id="dash-credit" style="color:#dc2626;">GH₵ 0.00</strong>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:12px;">
+        <span>💸 Total Shop Expenses:</span>
+        <strong id="dash-expenses-total" style="color:#6b7280;">GH₵ 0.00</strong>
+      </div>
+    </div>
+
+    <!-- Profit Metric (PIN Protected) -->
+    <div class="card">
+      <div class="card-title">
+        <span>🔐 Profit & Margins</span>
+        <button onclick="toggleProfitReveal()" class="btn-sm btn-gold">Reveal / Lock</button>
+      </div>
+      <div id="profit-reveal-box"></div>
+    </div>
+
+    <!-- Top Selling Products -->
+    <div class="card">
+      <div class="card-title">
+        <span>🏆 Top Selling Items</span>
+      </div>
+      <div id="dash-top-products"></div>
+    </div>
+
+    <!-- Actions -->
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:10px;">
+      <button onclick="sendShiftCloseoutWhatsApp()" class="btn-primary" style="background:#25d366;color:white;">
+        📲 Send Daily Closeout (Z-Report) via WhatsApp
+      </button>
+      <div class="row">
+        <button onclick="exportCsvBackup()" class="btn-primary flex-1 btn-gold">
+          📥 Backup CSV
+        </button>
+        <button onclick="openSettingsModal()" class="btn-primary flex-1" style="background:#374151;">
+          ⚙️ Settings & PIN
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAVIGATION BAR -->
+  <nav class="tab-bar">
+    <button id="tab-pos" class="tab-btn active" onclick="switchTab('pos')">
+      <span class="tab-icon">🛒</span>
+      <span>New Sale</span>
+    </button>
+    <button id="tab-inventory" class="tab-btn" onclick="switchTab('inventory')">
+      <span class="tab-icon">📦</span>
+      <span>Inventory</span>
+    </button>
+    <button id="tab-debtors" class="tab-btn" onclick="switchTab('debtors')">
+      <span class="tab-icon">👥</span>
+      <span>Debtors</span>
+      <span id="badge-debtors" class="tab-badge" style="display:none;">0</span>
+    </button>
+    <button id="tab-storage" class="tab-btn" onclick="switchTab('storage')">
+      <span class="tab-icon">🏷️</span>
+      <span>Stored</span>
+      <span id="badge-stored" class="tab-badge" style="display:none;">0</span>
+    </button>
+    <button id="tab-dashboard" class="tab-btn" onclick="switchTab('dashboard')">
+      <span class="tab-icon">📊</span>
+      <span>Report</span>
+    </button>
+  </nav>
+
+  <!-- MODALS -->
+
+  <!-- Receipt Modal -->
+  <div id="receipt-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <strong style="font-size:16px;color:#021235;">Sales Receipt</strong>
+        <button class="modal-close" onclick="closeReceiptModal()">✕</button>
+      </div>
+      <div id="receipt-body" class="receipt-printable"></div>
+      <div style="display:flex;gap:8px;margin-top:16px;">
+        <button onclick="sendReceiptWhatsApp()" class="btn-primary flex-1" style="background:#25d366;">
+          📲 WhatsApp
+        </button>
+        <button onclick="printReceipt()" class="btn-primary flex-1 btn-gold">
+          🖨️ Print
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add/Edit Product Modal -->
+  <div id="product-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <strong id="product-modal-title" style="font-size:16px;color:#021235;">Add Product</strong>
+        <button class="modal-close" onclick="document.getElementById('product-modal').style.display='none'">✕</button>
+      </div>
+      <input type="hidden" id="edit-product-id">
+      <div class="form-group">
+        <label class="form-label">Product Name</label>
+        <input type="text" id="edit-product-name" class="form-input" placeholder="e.g. Royal Aroma Rice 25kg">
+      </div>
+      <div class="row">
+        <div class="form-group flex-1">
+          <label class="form-label">Selling Price (GH₵)</label>
+          <input type="number" id="edit-product-price" class="form-input" placeholder="520.00" step="0.01">
+        </div>
+        <div class="form-group flex-1">
+          <label class="form-label">Cost Price (GH₵)</label>
+          <input type="number" id="edit-product-cost" class="form-input" placeholder="470.00" step="0.01">
+        </div>
+      </div>
+      <div class="row">
+        <div class="form-group flex-1">
+          <label class="form-label">Stock Quantity</label>
+          <input type="number" id="edit-product-stock" class="form-input" placeholder="50" step="any">
+        </div>
+        <div class="form-group flex-1">
+          <label class="form-label">Low Stock Alert At</label>
+          <input type="number" id="edit-product-threshold" class="form-input" placeholder="5" step="any">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Packaging / Unit</label>
+        <select id="edit-product-category" class="form-input">
+          <option value="Bags">Bags</option>
+          <option value="Gallons">Gallons</option>
+          <option value="Cartons">Cartons</option>
+          <option value="Crates">Crates</option>
+          <option value="Packs">Packs</option>
+          <option value="Pieces">Pieces</option>
+          <option value="Boxes">Boxes</option>
+          <option value="Tins">Tins</option>
+        </select>
+      </div>
+      <button onclick="saveProductFromModal()" class="btn-primary" style="margin-top:10px;">
+        💾 Save Product
+      </button>
+    </div>
+  </div>
+
+  <!-- Repayment Modal -->
+  <div id="repayment-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <strong style="font-size:16px;color:#021235;">Record Debt Payment</strong>
+        <button class="modal-close" onclick="document.getElementById('repayment-modal').style.display='none'">✕</button>
+      </div>
+      <div style="background:#eff6ff;padding:12px;border-radius:12px;margin-bottom:12px;">
+        <div style="font-size:11px;color:#1e3a8a;">Debtor:</div>
+        <strong id="repay-customer-name" style="font-size:15px;color:#021235;"></strong>
+        <div style="font-size:11px;color:#dc2626;margin-top:4px;">
+          Outstanding Balance: <strong id="repay-balance-due"></strong>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Amount Paying Now (GH₵)</label>
+        <input type="number" id="repay-amount" class="form-input" placeholder="0.00" step="0.01">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Payment Method</label>
+        <select id="repay-method" class="form-input">
+          <option value="Cash" selected>Cash (Put into Drawer)</option>
+          <option value="MTN MoMo">MTN MoMo</option>
+          <option value="Telecel Cash">Telecel Cash</option>
+        </select>
+      </div>
+      <button onclick="submitRepayment()" class="btn-primary btn-emerald" style="margin-top:10px;">
+        ✅ Save Payment
+      </button>
+    </div>
+  </div>
+
+  <!-- Add Expense Modal -->
+  <div id="expense-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <strong style="font-size:16px;color:#021235;">Record Shop Expense</strong>
+        <button class="modal-close" onclick="document.getElementById('expense-modal').style.display='none'">✕</button>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Expense Description</label>
+        <input type="text" id="expense-title" class="form-input" placeholder="e.g. ECG Light bill, Shop assistant lunch, Offloading">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Amount Paid Out of Drawer (GH₵)</label>
+        <input type="number" id="expense-amount" class="form-input" placeholder="0.00" step="0.01">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Category</label>
+        <select id="expense-category" class="form-input">
+          <option value="Utilities">Utilities (ECG / Water)</option>
+          <option value="Wages">Wages / Food / Allowance</option>
+          <option value="Transport">Transport / Offloading</option>
+          <option value="Repairs">Repairs & Maintenance</option>
+          <option value="Other">Other Miscellaneous</option>
+        </select>
+      </div>
+      <button onclick="saveExpense()" class="btn-primary" style="background:#dc2626;margin-top:10px;">
+        💸 Deduct Cash & Save Expense
+      </button>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <strong style="font-size:16px;color:#021235;">Shop Settings & Security</strong>
+        <button class="modal-close" onclick="document.getElementById('settings-modal').style.display='none'">✕</button>
+      </div>
+      <div class="form-group">
+        <label class="form-label">MoMo Number</label>
+        <input type="text" id="settings-momo-num" class="form-input" placeholder="0548809611">
+      </div>
+      <div class="form-group">
+        <label class="form-label">MoMo Registered Name</label>
+        <input type="text" id="settings-momo-name" class="form-input" placeholder="GEORGE GYAMFI">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Shop Contact Number</label>
+        <input type="text" id="settings-phone" class="form-input" placeholder="0548809611">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Location</label>
+        <input type="text" id="settings-location" class="form-input" placeholder="Juaben Adumasa, Ashanti Region">
+      </div>
+      <div style="border-top:1px solid #e5e7eb;margin-top:12px;padding-top:12px;">
+        <div style="font-size:12px;font-weight:bold;color:#021235;margin-bottom:8px;">Change Manager PIN</div>
+        <div class="form-group">
+          <label class="form-label">Current PIN</label>
+          <input type="password" id="settings-curr-pin" class="form-input" placeholder="Default: 1234">
+        </div>
+        <div class="form-group">
+          <label class="form-label">New 4-Digit PIN</label>
+          <input type="password" id="settings-new-pin" class="form-input" placeholder="Leave blank to keep same">
+        </div>
+      </div>
+      <button onclick="saveSettings()" class="btn-primary" style="margin-top:10px;">
+        💾 Save Settings
+      </button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

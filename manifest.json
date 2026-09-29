@@ -1,0 +1,19 @@
+{
+  "name": "King George Enterprise",
+  "short_name": "King George",
+  "description": "Retail POS & Shop Manager - Juaben Adumasa, Ghana",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#021235",
+  "theme_color": "#021235",
+  "orientation": "portrait-primary",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
